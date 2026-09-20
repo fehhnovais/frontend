@@ -1,0 +1,110 @@
+services:
+
+  #NODE WEB
+  nodeweb-container:
+    build:
+      context: .
+      dockerfile: docker/node-web/Dockerfile
+    env_file:
+      - .env
+      - .env.docker
+    volumes:
+      - ./src/backend:/app/backend
+      - ./src/_web.js:/app/_web.js
+      - ./src/frontend/public:/app/frontend/public
+      - nodemodules-volume:/app/node_modules
+    depends_on:
+      - postgres-container
+    environment:
+      POSTGRES_HOST: postgres_host
+      POSTGRES_PORT: 5432
+    restart: unless-stopped
+    networks:
+      app-network:
+        aliases:
+            - nodeweb_host
+
+  #NODE COMMAND
+  nodecommand-container:
+    build:
+      context: .
+      dockerfile: docker/node-command/Dockerfile
+    env_file:
+      - .env
+      - .env.docker
+    volumes:
+      - ./src/backend:/app/backend
+      - ./src/_command.js:/app/_command.js
+      - nodemodules-volume:/app/node_modules
+    depends_on:
+      - postgres-container
+    environment:
+      POSTGRES_HOST: postgres_host
+      POSTGRES_PORT: 5432
+    networks:
+      app-network:
+        aliases:
+            - nodecommand_host
+
+  #NODE VITE HMR
+  nodevitehmr-container:
+    build:
+      context: .
+      dockerfile: docker/node-vite-hmr/Dockerfile
+    env_file:
+      - .env.docker
+    volumes:
+      - ./src/frontend:/app/frontend
+      - nodemodules-volume:/app/node_modules
+    restart: unless-stopped
+    ports:
+      - "5172:5172"
+    networks:
+      - app-network
+
+  #NGINX
+  nginx-container:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src/frontend/public:/var/www
+      - ./aulas:/var/www/aulas
+      - ./src/logs/nginx:/var/log/nginx
+    depends_on:
+      - nodeweb-container
+    networks:
+      - app-network
+
+  #POSTGRES
+  postgres-container:
+    image: postgres:18
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: America/Sao_Paulo
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-volume:/var/lib/postgresql
+      - ./src/docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      app-network:
+        aliases:
+          - postgres_host
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  nodemodules-volume:
+  postgres-volume:
