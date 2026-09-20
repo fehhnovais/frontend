@@ -11,7 +11,8 @@ export default async function taskToggleHandler(event) {
         await taskUpdateApi(idUser, taskId, { is_done: isDone });
         await tasksListRender(idUser);
     } catch (error) {
-        alert("Erro ao atualizar tarefa");
+        event.target.checked = !isDone;
+        alert("Erro ao atualizar tarefa. Tente novamente.");
         console.error(error);
     }
 }
